@@ -1,0 +1,162 @@
+/* ══════════════════════════════
+   FULL PAGE LOADER
+══════════════════════════════ */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--clr-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.page-loader.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.page-loader__logo {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  background: var(--grad-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: pulseLogo 1.4s ease-in-out infinite;
+}
+
+@keyframes pulseLogo {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.97); }
+}
+
+/* Progress bar */
+.page-loader__bar {
+  width: 160px;
+  height: 3px;
+  background: var(--clr-border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.page-loader__bar-fill {
+  height: 100%;
+  background: var(--grad-primary);
+  border-radius: var(--radius-pill);
+  animation: loadingBar 1.4s ease-in-out infinite;
+}
+
+@keyframes loadingBar {
+  0%   { width: 0%; margin-left: 0%; }
+  50%  { width: 60%; margin-left: 20%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+
+/* ══════════════════════════════
+   INLINE SPINNER
+══════════════════════════════ */
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--clr-border);
+  border-top-color: var(--clr-violet);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.spinner--sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.spinner--lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+.spinner--pink {
+  border-color: rgba(255, 78, 205, 0.2);
+  border-top-color: var(--clr-pink);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════════════════════════
+   API LOADING STATE (catalog)
+══════════════════════════════ */
+.catalog-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-3xl) 0;
+  color: var(--clr-text-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* ══════════════════════════════
+   SKELETON UTILITIES
+   (shared, used by card.css too)
+══════════════════════════════ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--clr-bg-section) 0%,
+    var(--clr-border) 50%,
+    var(--clr-bg-section) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius-md);
+}
+
+.skeleton--text {
+  height: 14px;
+  width: 80%;
+}
+
+.skeleton--text-sm {
+  height: 11px;
+  width: 55%;
+}
+
+.skeleton--title {
+  height: 20px;
+  width: 70%;
+}
+
+.skeleton--circle {
+  border-radius: 50%;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ══════════════════════════════
+   OVERLAY SPINNER (modal load)
+══════════════════════════════ */
+.overlay-spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: inherit;
+  z-index: 5;
+}

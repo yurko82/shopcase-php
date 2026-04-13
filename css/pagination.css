@@ -1,0 +1,62 @@
+/* ══════════════════════════════
+   PAGINATION
+   Додати в кінець main.css
+══════════════════════════════ */
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-xl);
+}
+
+.pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--clr-border-dark);
+  background: var(--clr-white);
+  color: var(--clr-violet);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.pagination__btn:hover {
+  background: var(--clr-bg-section);
+  border-color: var(--clr-violet);
+  transform: translateY(-1px);
+}
+
+.pagination__btn--active {
+  background: var(--grad-btn);
+  border-color: transparent;
+  color: var(--clr-white);
+  box-shadow: 0 4px 14px rgba(255, 78, 205, 0.3);
+  pointer-events: none;
+}
+
+/* ── Лічильник результатів ── */
+.catalog__count {
+  font-size: 0.875rem;
+  color: var(--clr-text-muted);
+  margin-bottom: var(--space-lg);
+  padding-left: 4px;
+}
+
+.catalog__count strong {
+  color: var(--clr-violet);
+  font-weight: 700;
+}

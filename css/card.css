@@ -1,0 +1,287 @@
+/* ══════════════════════════════
+   PRODUCT CARD
+══════════════════════════════ */
+.card {
+  background: var(--clr-white);
+  border-radius: var(--radius-xl);
+  border: 1.5px solid var(--clr-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base);
+  animation: cardAppear 0.4s ease both;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--clr-border-dark);
+}
+
+@keyframes cardAppear {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Image ── */
+.card__image-wrap {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  background: var(--grad-hero);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.card__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+}
+
+.card:hover .card__image {
+  transform: scale(1.06);
+}
+
+/* Placeholder when no image */
+.card__image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  background: var(--grad-hero);
+  color: var(--clr-border-dark);
+}
+
+/* Badge — матеріал */
+.card__badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--grad-badge);
+  color: var(--clr-white);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 8px rgba(255, 78, 205, 0.3);
+}
+
+/* Out of stock overlay */
+.card__out-of-stock {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card__out-of-stock span {
+  background: var(--clr-text);
+  color: var(--clr-white);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Body ── */
+.card__body {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  flex: 1;
+}
+
+.card__model {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--clr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
+
+.card__name {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--clr-text);
+  line-height: 1.3;
+}
+
+/* Materials row */
+.card__materials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.card__mat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--clr-border-dark);
+  background: var(--clr-bg-section);
+  title: attr(data-label);
+  cursor: default;
+  transition: transform var(--transition-fast);
+}
+
+.card__mat-dot:hover {
+  transform: scale(1.4);
+}
+
+.card__mat-dot--available {
+  background: var(--grad-btn);
+  border-color: transparent;
+}
+
+/* ── Footer ── */
+.card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--clr-border);
+  gap: var(--space-sm);
+}
+
+.card__price {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  background: var(--grad-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.card__price-sub {
+  font-size: 0.72rem;
+  color: var(--clr-text-light);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.card__btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  border-radius: var(--radius-pill);
+  background: var(--grad-btn);
+  color: var(--clr-white);
+  font-weight: 700;
+  font-family: var(--font-body);
+  border: none;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+  box-shadow: 0 2px 10px rgba(255, 78, 205, 0.25);
+}
+
+.card__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 78, 205, 0.4);
+}
+
+.card__btn:active {
+  transform: scale(0.96);
+}
+
+.card__btn:disabled {
+  background: var(--clr-border);
+  color: var(--clr-text-light);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ══════════════════════════════
+   SKELETON CARD
+══════════════════════════════ */
+.card--skeleton {
+  pointer-events: none;
+  cursor: default;
+  border-color: var(--clr-border);
+}
+
+.card--skeleton::before {
+  content: '';
+  display: block;
+  padding-top: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--clr-bg-section) 0%,
+    var(--clr-border) 50%,
+    var(--clr-bg-section) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.card--skeleton::after {
+  content: '';
+  display: block;
+  height: 90px;
+  margin: var(--space-md);
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--clr-bg-section) 0%,
+    var(--clr-border) 50%,
+    var(--clr-bg-section) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  animation-delay: 0.1s;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ══════════════════════════════
+   RESPONSIVE
+══════════════════════════════ */
+@media (max-width: 480px) {
+  .card__body {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .card__name {
+    font-size: 0.85rem;
+  }
+
+  .card__price {
+    font-size: 1rem;
+  }
+
+  .card__btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+}

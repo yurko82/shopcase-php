@@ -1,0 +1,74 @@
+:root {
+  /* ── Fonts ── */
+  --font-display: 'Unbounded', sans-serif;
+  --font-body:    'Nunito', sans-serif;
+
+  /* ── Brand Palette ── */
+  --clr-pink:        #FF4ECD;
+  --clr-violet:      #7C3AED;
+  --clr-violet-dark: #5B21B6;
+  --clr-cyan:        #06B6D4;
+  --clr-yellow:      #FCD34D;
+  --clr-orange:      #FB923C;
+
+  /* ── Gradients ── */
+  --grad-primary:    linear-gradient(135deg, #FF4ECD 0%, #7C3AED 50%, #06B6D4 100%);
+  --grad-hero:       linear-gradient(135deg, #fdf4ff 0%, #ede9fe 50%, #e0f2fe 100%);
+  --grad-card-hover: linear-gradient(135deg, #FF4ECD22 0%, #7C3AED22 100%);
+  --grad-badge:      linear-gradient(90deg, #FF4ECD, #7C3AED);
+  --grad-btn:        linear-gradient(135deg, #FF4ECD, #7C3AED);
+  --grad-btn-hover:  linear-gradient(135deg, #e040b8, #6d28d9);
+  --grad-step:       linear-gradient(135deg, #ede9fe, #fdf4ff);
+
+  /* ── Neutral ── */
+  --clr-bg:          #ffffff;
+  --clr-bg-soft:     #fafafa;
+  --clr-bg-section:  #f5f3ff;
+  --clr-surface:     #ffffff;
+  --clr-border:      #ede9fe;
+  --clr-border-dark: #c4b5fd;
+
+  /* ── Text ── */
+  --clr-text:        #1e1b2e;
+  --clr-text-muted:  #6b7280;
+  --clr-text-light:  #9ca3af;
+  --clr-white:       #ffffff;
+
+  /* ── Status ── */
+  --clr-success:     #10b981;
+  --clr-error:       #ef4444;
+  --clr-warning:     #f59e0b;
+
+  /* ── Spacing ── */
+  --space-xs:   4px;
+  --space-sm:   8px;
+  --space-md:   16px;
+  --space-lg:   24px;
+  --space-xl:   40px;
+  --space-2xl:  64px;
+  --space-3xl:  96px;
+
+  /* ── Radius ── */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-xl:   32px;
+  --radius-pill: 999px;
+
+  /* ── Shadows ── */
+  --shadow-sm:  0 2px 8px rgba(124, 58, 237, 0.08);
+  --shadow-md:  0 4px 24px rgba(124, 58, 237, 0.12);
+  --shadow-lg:  0 8px 40px rgba(124, 58, 237, 0.18);
+  --shadow-card: 0 2px 16px rgba(124, 58, 237, 0.10);
+  --shadow-card-hover: 0 8px 32px rgba(255, 78, 205, 0.20);
+
+  /* ── Transitions ── */
+  --transition-fast:   150ms ease;
+  --transition-base:   250ms ease;
+  --transition-slow:   400ms ease;
+
+  /* ── Layout ── */
+  --container-max:  1200px;
+  --container-pad:  clamp(16px, 5vw, 40px);
+  --header-height:  68px;
+}
