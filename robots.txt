@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin.php
+Disallow: /api.php
+Disallow: /cron.php
+Disallow: /data/
+Disallow: /app/
+Disallow: /views/
+Disallow: /logs/
+Disallow: /cache/
+
+Sitemap: https://shopcase.top/sitemap.xml

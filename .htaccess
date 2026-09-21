@@ -1,0 +1,77 @@
+# ==============================================================================
+# ShopCase Production .htaccess Configuration
+# ==============================================================================
+
+# 1. Заборонити перегляд списку файлів у папках (Directory Listing)
+Options -Indexes
+
+# 2. Базове кодування UTF-8
+AddDefaultCharset UTF-8
+
+# 3. Захист системних та чутливих файлів від прямого доступу через браузер
+<FilesMatch "^(\.env|\.env\..*|\.git.*|.*\.log|.*\.json|.*\.csv|.*\.xml|.*\.sql|.*\.sqlite|.*\.sqlite3|.*\.db|.*\.bak|.*\.py|.*\.md|debug.*\.php)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 4. Захист службових папок та ЧПУ маршрутизація (SEO Clean URLs)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Захист службових папок
+    RewriteRule ^(app|views|data|includes|cache|logs)(/.*)?$ - [F,L,NC]
+
+    # Sitemap XML
+    RewriteRule ^sitemap\.xml$ sitemap.php [L,QSA]
+
+    # ЧПУ для категорій з пагінацією: /category/{slug}/page/{page}
+    RewriteRule ^category/([a-zA-Z0-9_-]+)/page/([0-9]+)/?$ index.php?cat=$1&page=$2 [L,QSA]
+
+    # ЧПУ для категорій: /category/{slug}
+    RewriteRule ^category/([a-zA-Z0-9_-]+)/?$ index.php?cat=$1 [L,QSA]
+
+    # ЧПУ для сторінок каталогу: /page/{page}
+    RewriteRule ^page/([0-9]+)/?$ index.php?page=$1 [L,QSA]
+</IfModule>
+
+# 5. Заголовки безпеки (Security Headers)
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# 6. Gzip / Deflate стиснення
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# 7. Кешування статичних ресурсів у браузері
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+</IfModule>

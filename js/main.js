@@ -75,13 +75,12 @@ function initBurger() {
    SMOOTH SCROLL
 ══════════════════════════════ */
 function initSmoothScroll() {
-  document.querySelectorAll('a[href^="#"], a[href*="/#"]').forEach(link => {
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
     link.addEventListener('click', e => {
-      const href   = link.getAttribute('href');
-      const hashIdx = href.indexOf('#');
-      if (hashIdx === -1) return;
+      const href = link.getAttribute('href');
+      if (!href || href === '#' || href.length <= 1) return;
 
-      const id     = href.slice(hashIdx + 1);
+      const id = href.slice(1);
       const target = document.getElementById(id);
       if (!target) return;
 

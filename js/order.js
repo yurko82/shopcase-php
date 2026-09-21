@@ -1,350 +1,420 @@
 /**
  * order.js
- * Форма замовлення — POST на /api.php (серверний endpoint)
- * Жодних прямих запитів до EndorPhone з браузера
+ * Оформлення замовлення: валідація, вибір міст та відділень Нової Пошти, відправка в API
  */
 
 const Order = (() => {
-
-  /* ── DOM ── */
   const overlay  = document.getElementById('orderModal');
   const closeBtn = document.getElementById('orderModalClose');
   const bodyEl   = document.getElementById('orderModalBody');
 
-  /* ── Стан ── */
-  let currentItem      = null;
-  let currentMaterial  = null;
-  let materialPrices   = {};
-  let materialLabels   = {};
+  let currentDesign   = null;
+  let currentModel    = null;
+  let currentMaterial = null;
+  let currentPrice    = 199;
+
+  let selectedCityName = '';
+  let selectedCityRef  = '';
+  let selectedWarehouseName = '';
+  let selectedWarehouseRef  = '';
+  let warehousesList = [];
+
   let paymentType      = '1';
   let prepayType       = 'card';
   let deliveryPayer    = '1';
 
-  /* ══════════════════════════════
-     ВІДКРИТИ ФОРМУ
-  ══════════════════════════════ */
-
-  function openForm(item, material, prices, labels) {
-    currentItem     = item;
+  function openForm(design, model, material, price) {
+    currentDesign   = design;
+    currentModel    = model;
     currentMaterial = material;
-    materialPrices  = prices;
-    materialLabels  = labels;
+    currentPrice    = price;
     paymentType     = '1';
     prepayType      = 'card';
     deliveryPayer   = '1';
 
+    selectedCityName = '';
+    selectedCityRef  = '';
+    selectedWarehouseName = '';
+    selectedWarehouseRef  = '';
+    warehousesList   = [];
+
     _render();
+
+    // Аналітика: початок оформлення замовлення
+    if (typeof Analytics !== 'undefined' && typeof Analytics.trackInitiateCheckout === 'function') {
+      Analytics.trackInitiateCheckout(design, model, material, price);
+    }
 
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    setTimeout(() => closeBtn.focus(), 50);
+    setTimeout(() => closeBtn && closeBtn.focus(), 50);
   }
-
-  /* ══════════════════════════════
-     ЗАКРИТИ
-  ══════════════════════════════ */
 
   function close() {
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
   }
 
-  /* ══════════════════════════════
-     РЕНДЕР ФОРМИ
-  ══════════════════════════════ */
-
   function _render() {
-    const price   = materialPrices[currentMaterial];
-    const matName = materialLabels[currentMaterial];
+    const matLabel = (window.SHOPCASE_MATERIALS && window.SHOPCASE_MATERIALS[currentMaterial]) || 'Силікон';
 
     bodyEl.innerHTML = `
       <div class="order-summary">
-        <span class="order-summary__name">
-          📱 ${_esc(currentItem.name)} · ${_esc(matName)}
-        </span>
-        <span class="order-summary__price">${price} ₴</span>
+        <img class="order-summary__img" src="${_esc(currentDesign.image)}" alt="${_esc(currentDesign.name)}" />
+        <div class="order-summary__info">
+          <p class="order-summary__title">${_esc(currentDesign.name)}</p>
+          <p class="order-summary__meta">📱 ${_esc(currentModel.name)} · ${_esc(matLabel)}</p>
+        </div>
+        <div class="order-summary__price">${currentPrice} ₴</div>
       </div>
 
       <form class="order-form" id="orderForm" novalidate>
-
         <div class="form-row">
           <div class="form-group">
             <label class="form-label required" for="fSurname">Прізвище</label>
-            <input class="form-input" id="fSurname" name="surname"
-              type="text" placeholder="Іваненко" autocomplete="family-name" />
+            <input class="form-input" id="fSurname" name="surname" type="text" placeholder="Шевченко" required />
             <span class="form-error" id="eSurname"></span>
           </div>
           <div class="form-group">
             <label class="form-label required" for="fName">Ім'я</label>
-            <input class="form-input" id="fName" name="name"
-              type="text" placeholder="Іван" autocomplete="given-name" />
+            <input class="form-input" id="fName" name="name" type="text" placeholder="Тарас" required />
             <span class="form-error" id="eName"></span>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label required" for="fPhone">Телефон</label>
-          <input class="form-input" id="fPhone" name="phone"
-            type="tel" placeholder="+380XXXXXXXXX" autocomplete="tel" />
+          <label class="form-label required" for="fPhone">Номер телефону</label>
+          <input class="form-input" id="fPhone" name="phone" type="tel" placeholder="+380501234567" required />
           <span class="form-error" id="ePhone"></span>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="fEmail">Email</label>
-          <input class="form-input" id="fEmail" name="email"
-            type="email" placeholder="mail@example.com" autocomplete="email" />
-          <span class="form-error" id="eEmail"></span>
+          <label class="form-label" for="fEmail">Email (необов'язково)</label>
+          <input class="form-input" id="fEmail" name="email" type="email" placeholder="taras@example.com" />
         </div>
 
+        <!-- Секція доставки Нової Пошти -->
         <div class="form-section">
-          <p class="form-section-title">🚚 Доставка — Нова Пошта</p>
+          <p class="form-section-title">📮 Доставка — Нова Пошта</p>
+          
           <div class="form-group">
-            <label class="form-label required" for="fCity">Місто</label>
-            <input class="form-input" id="fCity" name="city"
-              type="text" placeholder="Київ" />
+            <label class="form-label required" for="fCity">Населений пункт (місто / селище)</label>
+            <div class="np-search-box">
+              <input class="form-input" id="fCity" name="city" type="text" placeholder="Почніть вводити: Київ, Львів, Одеса..." autocomplete="off" required />
+              <ul class="np-dropdown hidden" id="cityDropdown"></ul>
+            </div>
             <span class="form-error" id="eCity"></span>
           </div>
+
           <div class="form-group">
-            <label class="form-label required" for="fWarehouse">Відділення НП</label>
-            <input class="form-input" id="fWarehouse" name="warehouse"
-              type="text" placeholder="Відділення №1" />
+            <label class="form-label required" for="fWarehouse">Відділення або поштомат НП</label>
+            <div class="np-search-box">
+              <input class="form-input" id="fWarehouse" name="warehouse" type="text" placeholder="Оберіть або введіть номер відділення/поштомату" autocomplete="off" required />
+              <ul class="np-dropdown hidden" id="whDropdown"></ul>
+            </div>
             <span class="form-error" id="eWarehouse"></span>
           </div>
         </div>
 
+        <!-- Оплата -->
         <div class="form-section">
           <p class="form-section-title">💳 Спосіб оплати</p>
-          <div class="payment-toggle" id="paymentToggle">
-            <div class="payment-option">
-              <input type="radio" name="payment" id="payNakladena" value="1" checked />
-              <label class="payment-option__label" for="payNakladena">
+          <div class="payment-toggle">
+            <label class="payment-option">
+              <input type="radio" name="payment" value="1" checked />
+              <span class="payment-option__card">
                 <span class="payment-option__icon">📦</span>
                 <span class="payment-option__name">Накладений платіж</span>
-                <span class="payment-option__desc">Оплата при отриманні</span>
-              </label>
-            </div>
-            <div class="payment-option">
-              <input type="radio" name="payment" id="payPrepay" value="2" />
-              <label class="payment-option__label" for="payPrepay">
+                <span class="payment-option__sub">Оплата при отриманні на пошті</span>
+              </span>
+            </label>
+            <label class="payment-option">
+              <input type="radio" name="payment" value="2" />
+              <span class="payment-option__card">
                 <span class="payment-option__icon">💳</span>
-                <span class="payment-option__name">Передоплата</span>
-                <span class="payment-option__desc">Картка / LiqPay / Баланс</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="prepayment-type hidden-soft" id="prepayTypeWrap">
-            <button type="button" class="prepay-chip active" data-prepay="card">💳 Картка</button>
-            <button type="button" class="prepay-chip" data-prepay="liqpay">📱 LiqPay</button>
-            <button type="button" class="prepay-chip" data-prepay="balance">🏦 Баланс</button>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <p class="form-section-title">📮 Хто оплачує доставку?</p>
-          <div class="payer-toggle" id="deliveryPayerToggle">
-            <button type="button" class="payer-btn active" data-payer="1">Я (отримувач)</button>
-            <button type="button" class="payer-btn" data-payer="2">Магазин</button>
+                <span class="payment-option__name">Передоплата онлайн</span>
+                <span class="payment-option__sub">Картка / LiqPay</span>
+              </span>
+            </label>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="fComment">Коментар</label>
-          <textarea class="form-textarea" id="fComment" name="comment"
-            placeholder="Побажання до замовлення..." rows="3"></textarea>
+          <label class="form-label" for="fComment">Коментар до замовлення</label>
+          <textarea class="form-textarea" id="fComment" name="comment" rows="2" placeholder="Додаткові побажання (необов'язково)..."></textarea>
         </div>
 
-        <div class="form-submit">
-          <button type="submit" class="btn btn--primary" id="submitOrderBtn">
-            Оформити замовлення
-          </button>
-        </div>
-
+        <button type="submit" class="btn btn--primary btn--block" id="submitOrderBtn">
+          Підтвердити замовлення (${currentPrice} ₴)
+        </button>
       </form>
     `;
 
     _bindFormEvents();
   }
 
-  /* ══════════════════════════════
-     ПОДІЇ ФОРМИ
-  ══════════════════════════════ */
-
   function _bindFormEvents() {
-    /* Оплата */
-    document.getElementById('paymentToggle').addEventListener('change', e => {
-      if (e.target.name !== 'payment') return;
-      paymentType = e.target.value;
-      document.getElementById('prepayTypeWrap')
-        .classList.toggle('hidden-soft', paymentType !== '2');
-    });
+    const form = document.getElementById('orderForm');
+    const cityInput = document.getElementById('fCity');
+    const cityDropdown = document.getElementById('cityDropdown');
+    const whInput = document.getElementById('fWarehouse');
+    const whDropdown = document.getElementById('whDropdown');
 
-    /* Тип передоплати */
-    document.getElementById('prepayTypeWrap').addEventListener('click', e => {
-      const chip = e.target.closest('.prepay-chip');
-      if (!chip) return;
-      prepayType = chip.dataset.prepay;
-      document.querySelectorAll('.prepay-chip').forEach(c =>
-        c.classList.toggle('active', c === chip)
-      );
-    });
+    // Обробка пошуку міст
+    if (cityInput && cityDropdown) {
+      let cityTimer = null;
 
-    /* Платник доставки */
-    document.getElementById('deliveryPayerToggle').addEventListener('click', e => {
-      const btn = e.target.closest('.payer-btn');
-      if (!btn) return;
-      deliveryPayer = btn.dataset.payer;
-      document.querySelectorAll('.payer-btn').forEach(b =>
-        b.classList.toggle('active', b === btn)
-      );
-    });
+      cityInput.addEventListener('input', () => {
+        const q = cityInput.value.trim();
+        clearTimeout(cityTimer);
 
-    /* Live-валідація */
-    document.querySelectorAll('#orderForm .form-input').forEach(input => {
-      input.addEventListener('blur',  () => _validateField(input));
-      input.addEventListener('input', () => {
-        if (input.classList.contains('error')) _validateField(input);
+        if (q.length < 2) {
+          cityDropdown.classList.add('hidden');
+          return;
+        }
+
+        cityTimer = setTimeout(async () => {
+          try {
+            const res = await fetch(`/api.php?action=searchCities&q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            if (data.success && data.data && data.data.length > 0) {
+              cityDropdown.innerHTML = '';
+              data.data.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'np-dropdown-item';
+                li.innerHTML = `
+                  <span class="np-dropdown-item__main">${_esc(item.name)}</span>
+                  ${item.area ? `<span class="np-dropdown-item__sub">${_esc(item.area)}</span>` : ''}
+                `;
+                li.addEventListener('mousedown', () => {
+                  cityInput.value = item.name;
+                  selectedCityName = item.name;
+                  selectedCityRef  = item.ref || '';
+                  cityDropdown.classList.add('hidden');
+                  
+                  // Завантажуємо відділення для обраного міста
+                  _loadWarehouses(selectedCityRef, selectedCityName);
+                  if (whInput) {
+                    whInput.value = '';
+                    selectedWarehouseRef = '';
+                    selectedWarehouseName = '';
+                    setTimeout(() => whInput.focus(), 100);
+                  }
+                });
+                cityDropdown.appendChild(li);
+              });
+              cityDropdown.classList.remove('hidden');
+            } else {
+              cityDropdown.classList.add('hidden');
+            }
+          } catch (err) {
+            console.error('NP error:', err);
+          }
+        }, 200);
       });
-    });
 
-    /* Відправка */
-    document.getElementById('orderForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      if (_validateAll()) await _submit();
-    });
-  }
-
-  /* ══════════════════════════════
-     ВАЛІДАЦІЯ
-  ══════════════════════════════ */
-
-  const rules = {
-    surname:   { required: true,  min: 2,  label: 'Прізвище' },
-    name:      { required: true,  min: 2,  label: "Ім'я" },
-    phone:     { required: true,  pattern: /^\+380\d{9}$/, label: 'Телефон (+380XXXXXXXXX)' },
-    email:     { required: false, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, label: 'Email' },
-    city:      { required: true,  min: 2,  label: 'Місто' },
-    warehouse: { required: true,  min: 2,  label: 'Відділення' },
-  };
-
-  function _validateField(input) {
-    const rule = rules[input.name];
-    if (!rule) return true;
-
-    const val = input.value.trim();
-    let error  = '';
-
-    if (rule.required && !val) {
-      error = `${rule.label} — обов'язкове поле`;
-    } else if (val && rule.min && val.length < rule.min) {
-      error = `Мінімум ${rule.min} символи`;
-    } else if (val && rule.pattern && !rule.pattern.test(val)) {
-      error = `Невірний формат: ${rule.label}`;
+      cityInput.addEventListener('blur', () => {
+        setTimeout(() => cityDropdown.classList.add('hidden'), 200);
+      });
     }
 
-    const errId = 'e' + input.name.charAt(0).toUpperCase() + input.name.slice(1);
-    const errEl = document.getElementById(errId);
-    if (errEl) errEl.textContent = error;
+    // Обробка вибору відділень / поштоматів
+    if (whInput && whDropdown) {
+      whInput.addEventListener('focus', () => {
+        _renderWarehousesDropdown(whInput.value.trim());
+      });
 
-    input.classList.toggle('error', !!error);
-    input.classList.toggle('valid', !error && !!val);
+      whInput.addEventListener('input', () => {
+        _renderWarehousesDropdown(whInput.value.trim());
+      });
 
-    return !error;
+      whInput.addEventListener('blur', () => {
+        setTimeout(() => whDropdown.classList.add('hidden'), 200);
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (_validateForm()) {
+          await _submitOrder();
+        }
+      });
+    }
   }
 
-  function _validateAll() {
-    let valid = true;
-    document.querySelectorAll('#orderForm .form-input').forEach(input => {
-      if (!_validateField(input)) valid = false;
+  async function _loadWarehouses(cityRef, cityName) {
+    if (!cityRef && !cityName) return;
+    try {
+      const res = await fetch(`/api.php?action=getWarehouses&cityRef=${encodeURIComponent(cityRef)}&cityName=${encodeURIComponent(cityName)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        warehousesList = data.data;
+        const whInput = document.getElementById('fWarehouse');
+        if (whInput && document.activeElement === whInput) {
+          _renderWarehousesDropdown(whInput.value.trim());
+        }
+      }
+    } catch (err) {
+      console.warn('Warehouses load error:', err);
+    }
+  }
+
+  function _renderWarehousesDropdown(filterQuery) {
+    const whDropdown = document.getElementById('whDropdown');
+    const whInput = document.getElementById('fWarehouse');
+    if (!whDropdown || !whInput) return;
+
+    if (!warehousesList || warehousesList.length === 0) {
+      whDropdown.classList.add('hidden');
+      return;
+    }
+
+    const q = (filterQuery || '').toLowerCase();
+    const filtered = warehousesList.filter(wh => 
+      !q || wh.name.toLowerCase().includes(q) || (wh.number && wh.number.includes(q))
+    ).slice(0, 40);
+
+    if (filtered.length === 0) {
+      whDropdown.classList.add('hidden');
+      return;
+    }
+
+    whDropdown.innerHTML = '';
+    filtered.forEach(wh => {
+      const li = document.createElement('li');
+      li.className = 'np-dropdown-item';
+      li.innerHTML = `
+        <span class="np-dropdown-item__main">${_esc(wh.name)}</span>
+        ${wh.number ? `<span class="np-dropdown-item__sub">№ ${wh.number}</span>` : ''}
+      `;
+      li.addEventListener('mousedown', () => {
+        whInput.value = wh.name;
+        selectedWarehouseName = wh.name;
+        selectedWarehouseRef  = wh.ref || '';
+        whDropdown.classList.add('hidden');
+      });
+      whDropdown.appendChild(li);
     });
+
+    whDropdown.classList.remove('hidden');
+  }
+
+  function _validateForm() {
+    let valid = true;
+
+    const reqs = [
+      { id: 'fSurname', err: 'eSurname', msg: 'Введіть прізвище' },
+      { id: 'fName', err: 'eName', msg: "Введіть ім'я" },
+      { id: 'fPhone', err: 'ePhone', msg: 'Введіть телефон (+380XXXXXXXXX)', pattern: /^\+380\d{9}$/ },
+      { id: 'fCity', err: 'eCity', msg: 'Вкажіть населений пункт' },
+      { id: 'fWarehouse', err: 'eWarehouse', msg: 'Вкажіть відділення або поштомат' },
+    ];
+
+    reqs.forEach(r => {
+      const el = document.getElementById(r.id);
+      const errEl = document.getElementById(r.err);
+      if (!el || !errEl) return;
+
+      const val = el.value.trim();
+      if (!val) {
+        errEl.textContent = r.msg;
+        el.classList.add('error');
+        valid = false;
+      } else if (r.pattern && !r.pattern.test(val)) {
+        errEl.textContent = r.msg;
+        el.classList.add('error');
+        valid = false;
+      } else {
+        errEl.textContent = '';
+        el.classList.remove('error');
+      }
+    });
+
     return valid;
   }
 
-  /* ══════════════════════════════
-     ВІДПРАВКА на /api.php
-  ══════════════════════════════ */
+  async function _submitOrder() {
+    const btn = document.getElementById('submitOrderBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Оформлюємо замовлення...';
+    }
 
-  async function _submit() {
-    const submitBtn = document.getElementById('submitOrderBtn');
-    submitBtn.classList.add('loading');
-    submitBtn.textContent = 'Надсилаємо...';
-    submitBtn.disabled    = true;
-
-    const price       = materialPrices[currentMaterial];
-    const productCode = `${currentItem.id}-${currentMaterial}`;
+    const utmData = (typeof Analytics !== 'undefined' && typeof Analytics.getUtmData === 'function')
+      ? Analytics.getUtmData()
+      : {};
 
     const payload = {
       action: 'createOrder',
       data: {
-        surname:             _val('fSurname'),
-        name:                _val('fName'),
-        phone:               _val('fPhone'),
-        email:               _val('fEmail'),
-        city:                _val('fCity'),
-        warehouse:           _val('fWarehouse'),
-        payment_type:        paymentType,
-        perpayment_type:     paymentType === '2' ? prepayType : 'card',
-        delivery_payer:      deliveryPayer,
-        cash_delivery_payer: '1',
-        comment:             _val('fComment'),
-        products: [
-          { code: productCode, qty: '1', price: String(price) },
-        ],
-      },
+        design_id: currentDesign.id,
+        model_id: currentModel.id,
+        mat_key: currentMaterial,
+        surname: _val('fSurname'),
+        name: _val('fName'),
+        phone: _val('fPhone'),
+        email: _val('fEmail'),
+        city: _val('fCity'),
+        city_ref: selectedCityRef || '',
+        warehouse: _val('fWarehouse'),
+        warehouse_ref: selectedWarehouseRef || '',
+        payment_type: document.querySelector('input[name="payment"]:checked')?.value || '1',
+        comment: _val('fComment'),
+        utm: utmData
+      }
     };
 
     try {
-      const res  = await fetch('/api.php', {
-        method:  'POST',
+      const res = await fetch('/api.php', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
 
       if (data.success) {
-        _showSuccess(data.id);
-        Toast.show(`Замовлення #${data.id} оформлено!`, 'success');
-      } else {
-        throw new Error(data.error || 'Помилка сервера');
-      }
+        // Аналітика: успішна покупка (Purchase)
+        if (typeof Analytics !== 'undefined' && typeof Analytics.trackPurchase === 'function') {
+          Analytics.trackPurchase({
+            order_id: data.order_id || data.endorphone_id,
+            total_amount: currentPrice,
+            product_code: data.product_code || `${currentDesign.id}-${currentModel.id}`,
+            product_name: currentDesign.name || `Принт #${currentDesign.id}`,
+            model_name: currentModel.name
+          });
+        }
 
+        _renderSuccess(data.order_id || data.endorphone_id);
+        Toast.show(`Замовлення #${data.order_id} успішно прийнято!`, 'success');
+      } else {
+        throw new Error(data.error || 'Помилка при створенні замовлення');
+      }
     } catch (err) {
-      Toast.show(err.message || 'Помилка. Спробуйте ще раз.', 'error');
-      submitBtn.classList.remove('loading');
-      submitBtn.textContent = 'Оформити замовлення';
-      submitBtn.disabled    = false;
+      Toast.show(err.message || 'Помилка відправки', 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = `Підтвердити замовлення (${currentPrice} ₴)`;
+      }
     }
   }
 
-  /* ══════════════════════════════
-     УСПІХ
-  ══════════════════════════════ */
-
-  function _showSuccess(orderId) {
+  function _renderSuccess(orderId) {
     bodyEl.innerHTML = `
-      <div class="modal-success">
-        <span class="modal-success__icon">🎉</span>
-        <h3 class="modal-success__title">Замовлення прийнято!</h3>
-        <p class="modal-success__text">
-          Ми зв'яжемося з вами найближчим часом.<br/>
-          Доставка Новою Поштою по всій Україні.
+      <div class="order-success">
+        <div class="order-success__icon">🎉</div>
+        <h3 class="order-success__title">Дякуємо за замовлення!</h3>
+        <p class="order-success__text">
+          Ваш чохол відправлено у друк. Наш менеджер незабаром зв'яжеться з вами для уточнення деталей.
         </p>
-        <div class="modal-success__order-id">
-          Номер вашого замовлення
-          <span>#${orderId}</span>
+        <div class="order-success__num">
+          Номер вашого замовлення: <strong>#${orderId}</strong>
         </div>
-        <button class="btn btn--outline" id="successCloseBtn">
-          Повернутися до каталогу
-        </button>
+        <button class="btn btn--outline btn--block" onclick="Order.close()">Повернутися до каталогу</button>
       </div>
     `;
-    document.getElementById('successCloseBtn').addEventListener('click', close);
   }
-
-  /* ══════════════════════════════
-     УТІЛІТИ
-  ══════════════════════════════ */
 
   function _val(id) {
     const el = document.getElementById(id);
@@ -352,17 +422,13 @@ const Order = (() => {
   }
 
   function _esc(str) {
-    return String(str)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  /* Overlay події */
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) close();
-  });
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  if (overlay) {
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  }
 
   return { openForm, close };
 })();

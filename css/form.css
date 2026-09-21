@@ -67,7 +67,7 @@
 .form-input:focus,
 .form-select:focus {
   border-color: var(--clr-pink);
-  box-shadow: 0 0 0 3px rgba(255, 78, 205, 0.12);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
   background: var(--clr-white);
   outline: none;
 }
@@ -300,7 +300,7 @@
 
 .form-textarea:focus {
   border-color: var(--clr-pink);
-  box-shadow: 0 0 0 3px rgba(255, 78, 205, 0.12);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
   outline: none;
   background: var(--clr-white);
 }
@@ -341,6 +341,67 @@
 
 @keyframes spin {
   to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* ══════════════════════════════
+   NOVA POSHTA AUTOCOMPLETE
+══════════════════════════════ */
+.np-search-box {
+  position: relative;
+  width: 100%;
+}
+
+.np-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--clr-white);
+  border: 1.5px solid var(--clr-border-dark);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  list-style: none;
+  padding: 4px 0;
+  margin: 0;
+}
+
+.np-dropdown.hidden {
+  display: none !important;
+}
+
+.np-dropdown-item {
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--clr-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid var(--clr-border-light, #f1f5f9);
+}
+
+.np-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.np-dropdown-item:hover,
+.np-dropdown-item.active {
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--clr-violet);
+}
+
+.np-dropdown-item__main {
+  font-weight: 600;
+}
+
+.np-dropdown-item__sub {
+  font-size: 0.75rem;
+  color: var(--clr-text-muted);
 }
 
 /* ══════════════════════════════

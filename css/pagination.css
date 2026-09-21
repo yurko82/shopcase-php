@@ -48,6 +48,20 @@
   pointer-events: none;
 }
 
+.pagination__dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 40px;
+  color: var(--clr-text-muted);
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  user-select: none;
+}
+
 /* ── Лічильник результатів ── */
 .catalog__count {
   font-size: 0.875rem;
@@ -59,4 +73,22 @@
 .catalog__count strong {
   color: var(--clr-violet);
   font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .pagination {
+    gap: 6px;
+    margin-top: var(--space-lg);
+  }
+  .pagination__btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    font-size: 0.825rem;
+  }
+  .pagination__dots {
+    min-width: 18px;
+    height: 36px;
+    font-size: 0.95rem;
+  }
 }

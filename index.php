@@ -1,410 +1,257 @@
 <?php
-/**
- * index.php
- * Головна сторінка ShopCase
- * Каталог рендериться на сервері через EndorPhone API
- */
+declare(strict_types=1);
 
-require_once __DIR__ . '/includes/config.php';
-require_once __DIR__ . '/includes/endorphone.php';
-require_once __DIR__ . '/includes/catalog.php';
+require_once __DIR__ . '/app/Config.php';
+require_once __DIR__ . '/app/Database.php';
+require_once __DIR__ . '/app/EndorPhone.php';
+require_once __DIR__ . '/app/StockService.php';
+require_once __DIR__ . '/app/CatalogService.php';
+require_once __DIR__ . '/app/OrderService.php';
 
-$pageTitle = 'ShopCase — Яскраві чохли для вашого телефону';
+use App\Config;
+use App\CatalogService;
+use App\StockService;
 
-/* ── Завантажуємо stock з API (або кеш) ── */
-$api      = new EndorPhone();
-$stock    = $api->getAllStock();
+Config::load();
 
-/* ── Завантажуємо каталог дизайнів з CSV ── */
-$csvProducts  = Catalog::getProducts();
-$csvCategories = Catalog::getCategories($csvProducts);
-$filterDesignCat = trim($_GET['design_cat'] ?? '');
-$randomDesigns = Catalog::getRandomDesigns($csvProducts, 12, $filterDesignCat);
-$hasStock = !empty($stock);
+// Фільтри
+$currentCategory = trim((string)($_GET['cat'] ?? ''));
+$currentSearch   = trim((string)($_GET['q'] ?? ''));
+$rawPage         = max(1, (int)($_GET['page'] ?? 1));
+$perPage         = 24;
 
-/* ── Фільтрація через GET параметри ── */
-$filterModel = trim($_GET['model'] ?? '');
-$filterMat   = trim($_GET['mat'] ?? '');
+// Отримання даних з бази SQLite / JSON
+$categories = CatalogService::getCategories();
+$totalDesignsCount = array_sum(array_column($categories, 'count'));
 
-$filtered = $stock;
-
-if ($filterModel !== '') {
-    $filtered = array_filter($filtered, fn($item) =>
-        (string)$item['id'] === $filterModel
-    );
+// Пошук активної категорії
+$activeCategoryName = '';
+$activeCategoryIcon = '';
+foreach ($categories as $cat) {
+    if ($cat['slug'] === $currentCategory) {
+        $activeCategoryName = $cat['name'];
+        $activeCategoryIcon = $cat['icon'];
+        break;
+    }
 }
 
-if ($filterMat !== '' && isset(MATERIAL_LABELS[$filterMat])) {
-    $filtered = array_filter($filtered, fn($item) =>
-        !empty($item[$filterMat])
-    );
+// Отримання дизайнів
+$offset = ($rawPage - 1) * $perPage;
+$catalogData = CatalogService::getDesigns($currentCategory, $currentSearch, $perPage, $offset);
+$totalItems = $catalogData['total'];
+$totalPages = max(1, (int)ceil($totalItems / $perPage));
+$currentPage = min($rawPage, $totalPages);
+
+// Якщо запитана сторінка більша за наявні сторінки
+if ($currentPage !== $rawPage && $totalItems > 0) {
+    $offset = ($currentPage - 1) * $perPage;
+    $catalogData = CatalogService::getDesigns($currentCategory, $currentSearch, $perPage, $offset);
+}
+$designs = $catalogData['items'];
+
+// Діапазон відображених товарів
+$fromItem = $totalItems > 0 ? $offset + 1 : 0;
+$toItem   = min($totalItems, $offset + count($designs));
+
+// Базовий URL для SEO
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'https';
+$host = $_SERVER['HTTP_HOST'] ?? 'shopcase.top';
+$baseUrl = "{$scheme}://{$host}";
+
+// Динамічні SEO метадані
+if ($currentCategory !== '' && $activeCategoryName !== '') {
+    $pageTitle = "Чохли з принтами «{$activeCategoryName}» — купити чохол на телефон | ShopCase";
+    $metaDescription = "Купити стильні чохли з колекції «{$activeCategoryName}» для 670+ моделей телефонів (iPhone, Samsung, Xiaomi, Poco тощо). УФ-друк, ударостійкі матеріали, швидка доставка Новою Поштою.";
+    $canonicalUrl = ($currentPage > 1)
+        ? "{$baseUrl}/category/" . rawurlencode($currentCategory) . "/page/{$currentPage}"
+        : "{$baseUrl}/category/" . rawurlencode($currentCategory);
+} elseif ($currentSearch !== '') {
+    $pageTitle = "Пошук принтів «" . htmlspecialchars($currentSearch) . "» — Каталог чохлів | ShopCase";
+    $metaDescription = "Результати пошуку чохлів за запитом «" . htmlspecialchars($currentSearch) . "». Знайдено {$totalItems} принтів. Обирайте дизайн та свій смартфон у каталозі ShopCase.";
+    $canonicalUrl = "{$baseUrl}/?q=" . urlencode($currentSearch);
+} elseif ($currentPage > 1) {
+    $pageTitle = "Каталог авторських чохлів для смартфонів (Сторінка {$currentPage}) | ShopCase";
+    $metaDescription = "Сторінка {$currentPage} каталогу авторських принтів на чохли для 670+ моделей телефонів. Висока якість друку, матеріали від силікону до MagSafe.";
+    $canonicalUrl = "{$baseUrl}/page/{$currentPage}";
+} else {
+    $pageTitle = "ShopCase — Авторські чохли для 670+ смартфонів з доставкою по Україні";
+    $metaDescription = "Яскраві чохли з якісним УФ-друком для 670+ моделей телефонів (iPhone, Samsung, Xiaomi, Pixel). Силікон, TPU, Bumper MagSafe, 3D пластик. Онлайн 3D-конструктор з власним фото!";
+    $canonicalUrl = "{$baseUrl}/";
 }
 
-$filtered = array_values($filtered);
+$ogImage = (!empty($designs[0]['image_path'])) ? "{$baseUrl}" . $designs[0]['image_path'] : "{$baseUrl}/design/made-in-ukraine/5293u-4029.jpg";
 
-/* ── Групуємо моделі для select ── */
-$modelGroups = [];
-foreach ($stock as $item) {
-    $brand = explode(' ', $item['name'])[0];
-    $modelGroups[$brand][] = $item;
+// Функція формування ЧПУ URL сторінки пагінації
+function getCatalogPageUrl(int $page, string $category, string $search): string {
+    if ($search !== '') {
+        $params = ['q' => $search];
+        if ($category !== '') {
+            $params['cat'] = $category;
+        }
+        if ($page > 1) {
+            $params['page'] = $page;
+        }
+        return '?' . http_build_query($params) . '#catalog';
+    }
+
+    if ($category !== '') {
+        if ($page > 1) {
+            return '/category/' . rawurlencode($category) . '/page/' . $page . '#catalog';
+        }
+        return '/category/' . rawurlencode($category) . '#catalog';
+    }
+
+    if ($page > 1) {
+        return '/page/' . $page . '#catalog';
+    }
+
+    return '/#catalog';
 }
-ksort($modelGroups);
 
-/* ── Пагінація ── */
-$perPage     = 12;
-$totalItems  = count($filtered);
-$totalPages  = max(1, (int)ceil($totalItems / $perPage));
-$currentPage = max(1, min((int)($_GET['page'] ?? 1), $totalPages));
-$offset      = ($currentPage - 1) * $perPage;
-$pageItems   = array_slice($filtered, $offset, $perPage);
+// Функція генерації номерів сторінок із крапками
+function getPaginationElements(int $currentPage, int $totalPages): array {
+    if ($totalPages <= 7) {
+        return range(1, $totalPages);
+    }
+    if ($currentPage <= 4) {
+        return [1, 2, 3, 4, 5, '...', $totalPages];
+    }
+    if ($currentPage >= $totalPages - 3) {
+        return [1, '...', $totalPages - 4, $totalPages - 3, $totalPages - 2, $totalPages - 1, $totalPages];
+    }
+    return [1, '...', $currentPage - 1, $currentPage, $currentPage + 1, '...', $totalPages];
+}
 
-include __DIR__ . '/includes/header.php';
+// Дані моделей для швидкого клієнтського автокомпліту
+$modelsForJs = StockService::getModelsForJs();
+
+// Підключення шапки
+include __DIR__ . '/views/layout/header.php';
+
+// Секція Hero
+include __DIR__ . '/views/components/hero.php';
 ?>
 
-<!-- ========== HERO ========== -->
-<section class="hero" id="hero">
-  <div class="hero__bg-blobs" aria-hidden="true">
-    <div class="blob blob--1"></div>
-    <div class="blob blob--2"></div>
-    <div class="blob blob--3"></div>
-  </div>
-  <div class="container hero__inner">
-    <div class="hero__content">
-      <span class="hero__badge">🔥 Новинки вже в каталозі</span>
-      <h1 class="hero__title">
-        Чохол — це твій<br/>
-        <span class="hero__title-accent">стиль і захист</span>
-      </h1>
-      <p class="hero__subtitle">
-        Друкуємо яскраві чохли для будь-якого смартфона.<br/>
-        Висока якість, швидка доставка Новою Поштою.
-      </p>
-      <div class="hero__actions">
-        <a href="#catalog" class="btn btn--primary btn--lg">Переглянути каталог</a>
-        <a href="#how-it-works" class="btn btn--outline btn--lg">Як це працює</a>
-      </div>
-      <div class="hero__stats">
-        <div class="hero__stat">
-          <span class="hero__stat-num"><?= count($stock) ?>+</span>
-          <span class="hero__stat-label">моделей</span>
-        </div>
-        <div class="hero__stat-divider"></div>
-        <div class="hero__stat">
-          <span class="hero__stat-num">8</span>
-          <span class="hero__stat-label">матеріалів</span>
-        </div>
-        <div class="hero__stat-divider"></div>
-        <div class="hero__stat">
-          <span class="hero__stat-num">1–3</span>
-          <span class="hero__stat-label">дні доставки</span>
-        </div>
-      </div>
-    </div>
-    <div class="hero__visual" aria-hidden="true">
-      <div class="hero__phone-mockup">
-        <div class="phone-frame">
-          <div class="phone-screen">
-            <div class="phone-gradient"></div>
-          </div>
-        </div>
-        <div class="hero__float hero__float--1">силікон</div>
-        <div class="hero__float hero__float--2">3D пластик</div>
-        <div class="hero__float hero__float--3">TPU</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<!-- ========== DESIGNS ========== -->
-<section class="designs" id="designs">
-  <div class="container">
-    <div class="section-header">
-      <h2 class="section-title">Дизайни чохлів</h2>
-      <p class="section-subtitle">Обирайте з <?= count(Catalog::getUniqueDesigns($csvProducts)) ?>+ унікальних дизайнів для будь-якого смартфона</p>
-    </div>
-
-    <!-- Категорії дизайнів -->
-    <div class="designs__cats">
-      <a href="/?#designs" class="chip <?= $filterDesignCat === '' ? 'chip--active' : '' ?>">Всі</a>
-      <?php foreach ($csvCategories as $cat => $cnt): ?>
-        <a href="/?design_cat=<?= urlencode($cat) ?>#designs"
-           class="chip <?= $filterDesignCat === $cat ? 'chip--active' : '' ?>">
-          <?= htmlspecialchars($cat) ?>
-          <span class="chip__count"><?= $cnt ?></span>
-        </a>
-      <?php endforeach; ?>
-    </div>
-
-    <!-- Сітка дизайнів -->
-    <?php if (empty($randomDesigns)): ?>
-      <div class="catalog__empty">
-        <span class="catalog__empty-icon">🎨</span>
-        <p>Дизайни завантажуються...</p>
-      </div>
-    <?php else: ?>
-    <div class="designs__grid" id="designsGrid">
-      <?php foreach ($randomDesigns as $i => $design): ?>
-        <div class="design-card" style="animation-delay:<?= $i * 50 ?>ms"
-             onclick="openDesignModal(<?= htmlspecialchars(json_encode([
-               'design'   => $design['design'],
-               'category' => $design['category'],
-               'image'    => $design['image'],
-               'price'    => $design['price'],
-               'count'    => $design['count'],
-             ]), ENT_QUOTES) ?>)"
-             role="button" tabindex="0">
-          <div class="design-card__image-wrap">
-            <img
-              class="design-card__image"
-              src="<?= htmlspecialchars($design['image']) ?>"
-              alt="<?= htmlspecialchars($design['design']) ?>"
-              loading="lazy"
-              onerror="this.parentElement.innerHTML='<div class='design-card__img-fallback'>🎨</div>'"
-            />
-            <?php if ($design['top']): ?>
-              <span class="design-card__top">🔥 Топ</span>
-            <?php endif; ?>
-            <div class="design-card__overlay">
-              <button class="design-card__order-btn">Замовити</button>
-            </div>
-          </div>
-          <div class="design-card__body">
-            <p class="design-card__cat"><?= htmlspecialchars($design['category']) ?></p>
-            <p class="design-card__name"><?= htmlspecialchars($design['design']) ?></p>
-            <p class="design-card__price">від <?= $design['price'] ?> ₴</p>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    </div>
-
-    <div class="designs__footer">
-      <a href="/?design_cat=<?= urlencode($filterDesignCat) ?>#designs"
-         class="btn btn--outline btn--lg" id="shuffleDesigns"
-         onclick="event.preventDefault();window.location.reload()">
-        🔀 Показати інші дизайни
-      </a>
-    </div>
-    <?php endif; ?>
-  </div>
-</section>
-
-<!-- DESIGN MODAL -->
-<div class="modal-overlay hidden" id="designModal" role="dialog" aria-modal="true">
-  <div class="modal modal--design">
-    <button class="modal__close" id="designModalClose" aria-label="Закрити">✕</button>
-    <div id="designModalBody"></div>
-  </div>
-</div>
-
-<!-- ========== CATALOG ========== -->
+<!-- ========== MAIN CATALOG ========== -->
 <section class="catalog" id="catalog">
   <div class="container">
     <div class="section-header">
-      <h2 class="section-title">Каталог чохлів</h2>
-      <p class="section-subtitle">Оберіть модель телефону та тип матеріалу</p>
+      <h2 class="section-title">Каталог авторських принтів</h2>
+      <p class="section-subtitle">Обирай принт, свій смартфон та матеріал чохла</p>
     </div>
 
-    <!-- Filters — form GET -->
-    <form class="filters" id="filters" method="GET" action="/#catalog">
+    <!-- Фільтри та пошук -->
+    <?php include __DIR__ . '/views/components/categories.php'; ?>
 
-      <!-- Прихований input для передачі model в GET -->
-      <input type="hidden" name="model" id="modelHidden" value="<?= htmlspecialchars($filterModel) ?>" />
-
-      <div class="filter-group">
-        <label class="filter-label" for="modelSearch">Модель телефону</label>
-        <div class="model-search" id="modelSearch">
-          <div class="model-search__input-wrap">
-            <svg class="model-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input
-              class="model-search__input"
-              id="modelSearchInput"
-              type="text"
-              placeholder="Введіть назву: iPhone 15, Samsung S24..."
-              autocomplete="off"
-              value="<?php
-                if ($filterModel !== '') {
-                  foreach ($stock as $s) {
-                    if ((string)$s['id'] === $filterModel) {
-                      echo htmlspecialchars($s['name']);
-                      break;
-                    }
-                  }
-                }
-              ?>"
-            />
-            <button type="button" class="model-search__clear <?= $filterModel === '' ? 'hidden' : '' ?>" id="modelSearchClear" title="Скинути">✕</button>
-          </div>
-          <ul class="model-search__dropdown hidden" id="modelDropdown" role="listbox"></ul>
-        </div>
+    <!-- Статистика пошуку -->
+    <?php if ($currentSearch !== '' || $currentCategory !== ''): ?>
+      <div class="catalog__results-info">
+        <p>
+          Знайдено: <strong><?= $totalItems ?></strong> принтів
+          <?php if ($currentCategory !== ''): ?>
+            · Категорія: <strong><?= htmlspecialchars($currentCategory) ?></strong>
+          <?php endif; ?>
+          <?php if ($currentSearch !== ''): ?>
+            · Запит: <em>"<?= htmlspecialchars($currentSearch) ?>"</em>
+          <?php endif; ?>
+        </p>
+        <a href="/#catalog" class="catalog__reset-link">✕ Скинути всі фільтри</a>
       </div>
-
-      <div class="filter-group">
-        <label class="filter-label">Матеріал</label>
-        <div class="filter-chips">
-          <a href="<?= '/?model=' . urlencode($filterModel) . '#catalog' ?>"
-             class="chip <?= $filterMat === '' ? 'chip--active' : '' ?>">
-            Всі
-          </a>
-          <?php foreach (MATERIAL_LABELS as $key => $label): ?>
-            <a href="<?= '/?model=' . urlencode($filterModel) . '&mat=' . $key . '#catalog' ?>"
-               class="chip <?= $filterMat === $key ? 'chip--active' : '' ?>">
-              <?= htmlspecialchars($label) ?>
-            </a>
-          <?php endforeach; ?>
-        </div>
-      </div>
-    </form>
-
-    <!-- Результат фільтрації -->
-    <?php if ($hasStock && $totalItems > 0): ?>
-      <p class="catalog__count">
-        Знайдено: <strong><?= $totalItems ?></strong> моделей
-        <?php if ($filterMat !== ''): ?>
-          · матеріал: <strong><?= htmlspecialchars(MATERIAL_LABELS[$filterMat]) ?></strong>
-        <?php endif; ?>
-      </p>
     <?php endif; ?>
 
-    <!-- Product Grid -->
-    <div class="catalog__grid" id="catalogGrid">
+    <!-- Лічильник результатів -->
+    <?php if ($totalItems > 0): ?>
+      <div class="catalog__count">
+        Показано <strong><?= $fromItem ?>–<?= $toItem ?></strong> з <strong><?= $totalItems ?></strong> принтів
+        <?php if ($totalPages > 1): ?>
+          · Сторінка <strong><?= $currentPage ?></strong> з <strong><?= $totalPages ?></strong>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
 
-      <?php if (!$hasStock): ?>
-        <!-- Помилка завантаження -->
-        <div class="catalog__empty" style="grid-column:1/-1">
-          <span class="catalog__empty-icon">⚠️</span>
-          <p>Не вдалося завантажити товари. Спробуйте оновити сторінку.</p>
-        </div>
-
-      <?php elseif (empty($pageItems)): ?>
-        <!-- Порожній результат фільтрації -->
-        <div class="catalog__empty" style="grid-column:1/-1">
+    <!-- Сітка принтів -->
+    <div class="designs-grid" id="designsGrid">
+      <?php if (empty($designs)): ?>
+        <div class="catalog__empty" style="grid-column: 1 / -1;">
           <span class="catalog__empty-icon">🔍</span>
-          <p>Нічого не знайдено. Спробуйте змінити фільтри.</p>
-          <a href="/" class="btn btn--outline" style="margin-top:16px">Скинути фільтри</a>
+          <h3>Нічого не знайдено</h3>
+          <p>Спробуйте змінити пошуковий запит або обрати іншу категорію</p>
+          <a href="/#catalog" class="btn btn--outline" style="margin-top: 16px;">Показати всі принти</a>
         </div>
-
       <?php else: ?>
-        <!-- Картки товарів -->
-        <?php foreach ($pageItems as $i => $item):
-          $availableMats = EndorPhone::getAvailableMaterials($item);
-          $minPrice      = EndorPhone::getMinPrice($item);
-          $isAvailable   = !empty($availableMats);
-          $firstMat      = $availableMats[0] ?? null;
-          $emoji         = EndorPhone::getBrandEmoji($item['name']);
-          $brand         = explode(' ', $item['name'])[0];
-          $modelName     = implode(' ', array_slice(explode(' ', $item['name']), 1));
-
-          // Шукаємо фото для цієї моделі з CSV (будь-який дизайн)
-          $csvPhoto = '';
-          foreach ($csvProducts as $csvP) {
-              $parts = explode('-', $csvP['code']);
-              $csvModelId = end($parts);
-              if ($csvModelId === (string)$item['id'] && !empty($csvP['image'])) {
-                  $csvPhoto = $csvP['image'];
-                  break;
-              }
-          }
-
-          // JSON для JS модалки — будуємо mats явно
-          $mats = [];
-          foreach (array_keys(MATERIAL_LABELS) as $matKey) {
-              $mats[$matKey] = isset($item[$matKey]) && $item[$matKey] === true;
-          }
-          $itemJson = htmlspecialchars(json_encode([
-            'id'   => $item['id'],
-            'name' => $item['name'],
-            'mats' => $mats,
-          ]), ENT_QUOTES);
+        <?php foreach ($designs as $i => $design):
+          $designJson = htmlspecialchars(json_encode([
+            'id'            => (int)$design['id'],
+            'name'          => $design['name'],
+            'category_slug' => $design['category_slug'],
+            'category_name' => $design['category_name'],
+            'image'         => $design['image_path'],
+          ], JSON_UNESCAPED_UNICODE), ENT_QUOTES);
         ?>
-        <div class="card <?= !$isAvailable ? 'card--unavailable' : '' ?>"
-             style="animation-delay:<?= ($i % $perPage) * 40 ?>ms"
-             <?= $isAvailable ? "onclick=\"Modal.openProduct($itemJson)\"" : '' ?>
-             role="<?= $isAvailable ? 'button' : 'article' ?>"
-             tabindex="<?= $isAvailable ? '0' : '-1' ?>"
-             aria-label="<?= htmlspecialchars($item['name']) ?>">
+          <div class="design-card"
+               style="animation-delay: <?= ($i % 12) * 30 ?>ms"
+               onclick="Customizer.open(<?= $designJson ?>)"
+               role="button"
+               tabindex="0"
+               aria-label="<?= htmlspecialchars($design['name']) ?>">
 
-          <!-- Зображення -->
-          <div class="card__image-wrap">
-            <?php if ($firstMat): ?>
-              <span class="card__badge">
-                <?= htmlspecialchars(MATERIAL_LABELS[$firstMat]) ?>
-              </span>
-            <?php endif; ?>
-
-            <?php if ($csvPhoto): ?>
-              <img class="card__image"
-                   src="<?= htmlspecialchars($csvPhoto) ?>"
-                   alt="<?= htmlspecialchars($item['name']) ?>"
-                   loading="lazy"
-                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-              <div class="card__image-placeholder" style="display:none"><?= $emoji ?></div>
-            <?php else: ?>
-              <div class="card__image-placeholder"><?= $emoji ?></div>
-            <?php endif; ?>
-
-            <?php if (!$isAvailable): ?>
-              <div class="card__out-of-stock">
-                <span>Немає в наявності</span>
+            <div class="design-card__image-wrap">
+              <img
+                class="design-card__image"
+                src="<?= htmlspecialchars($design['image_path']) ?>"
+                alt="<?= htmlspecialchars($design['name']) ?>"
+                loading="lazy"
+                onerror="this.onerror=null; this.src='/design/made-in-ukraine/5293u-4029.jpg';"
+              />
+              <?php if (!empty($design['is_top'])): ?>
+                <span class="design-card__badge">🔥 Топ</span>
+              <?php endif; ?>
+              <span class="design-card__category"><?= htmlspecialchars($design['category_name']) ?></span>
+              <div class="design-card__overlay">
+                <button class="btn btn--primary btn--sm" onclick="event.stopPropagation(); Customizer.open(<?= $designJson ?>)">
+                  Обрати свій телефон
+                </button>
               </div>
-            <?php endif; ?>
-          </div>
-
-          <!-- Body -->
-          <div class="card__body">
-            <p class="card__model"><?= htmlspecialchars($brand) ?></p>
-            <p class="card__name"><?= htmlspecialchars($modelName) ?></p>
-
-            <!-- Крапки матеріалів -->
-            <div class="card__materials">
-              <?php foreach (MATERIAL_LABELS as $key => $label): ?>
-                <span class="card__mat-dot <?= !empty($item[$key]) ? 'card__mat-dot--available' : '' ?>"
-                      title="<?= htmlspecialchars($label) ?>"></span>
-              <?php endforeach; ?>
             </div>
 
-            <!-- Footer картки -->
-            <div class="card__footer">
-              <div>
-                <p class="card__price">
-                  <?= $isAvailable ? 'від ' . $minPrice . ' ₴' : '—' ?>
-                </p>
-                <p class="card__price-sub">
-                  <?= $isAvailable ? 'накладений або передоплата' : '' ?>
-                </p>
+            <div class="design-card__body">
+              <h3 class="design-card__title"><?= htmlspecialchars($design['name']) ?></h3>
+              <div class="design-card__footer">
+                <span class="design-card__price">від <?= \App\Config::getMinPrice() ?> ₴</span>
+                <span class="design-card__action">Обрати →</span>
               </div>
-              <button class="card__btn"
-                      <?= !$isAvailable ? 'disabled' : '' ?>
-                      <?= $isAvailable ? "onclick=\"event.stopPropagation();Modal.openProduct($itemJson)\"" : '' ?>>
-                <?= $isAvailable ? 'Обрати' : 'Немає' ?>
-              </button>
             </div>
           </div>
-
-        </div>
         <?php endforeach; ?>
-
       <?php endif; ?>
-    </div><!-- /catalogGrid -->
+    </div>
 
     <!-- Пагінація -->
     <?php if ($totalPages > 1): ?>
       <nav class="pagination" aria-label="Сторінки каталогу">
         <?php if ($currentPage > 1): ?>
-          <a href="?model=<?= urlencode($filterModel) ?>&mat=<?= urlencode($filterMat) ?>&page=<?= $currentPage - 1 ?>#catalog"
-             class="pagination__btn">← Назад</a>
+          <a href="<?= getCatalogPageUrl($currentPage - 1, $currentCategory, $currentSearch) ?>"
+             class="pagination__btn pagination__btn--prev"
+             aria-label="Попередня сторінка">← Назад</a>
         <?php endif; ?>
 
-        <?php for ($p = 1; $p <= $totalPages; $p++): ?>
-          <a href="?model=<?= urlencode($filterModel) ?>&mat=<?= urlencode($filterMat) ?>&page=<?= $p ?>#catalog"
-             class="pagination__btn <?= $p === $currentPage ? 'pagination__btn--active' : '' ?>">
-            <?= $p ?>
-          </a>
-        <?php endfor; ?>
+        <?php foreach (getPaginationElements($currentPage, $totalPages) as $elem): ?>
+          <?php if ($elem === '...'): ?>
+            <span class="pagination__dots" aria-hidden="true">…</span>
+          <?php else: ?>
+            <a href="<?= getCatalogPageUrl((int)$elem, $currentCategory, $currentSearch) ?>"
+               class="pagination__btn <?= ($elem === $currentPage) ? 'pagination__btn--active' : '' ?>"
+               <?= ($elem === $currentPage) ? 'aria-current="page"' : '' ?>
+               aria-label="Сторінка <?= $elem ?><?= ($elem === $currentPage) ? ', поточна' : '' ?>">
+              <?= $elem ?>
+            </a>
+          <?php endif; ?>
+        <?php endforeach; ?>
 
         <?php if ($currentPage < $totalPages): ?>
-          <a href="?model=<?= urlencode($filterModel) ?>&mat=<?= urlencode($filterMat) ?>&page=<?= $currentPage + 1 ?>#catalog"
-             class="pagination__btn">Далі →</a>
+          <a href="<?= getCatalogPageUrl($currentPage + 1, $currentCategory, $currentSearch) ?>"
+             class="pagination__btn pagination__btn--next"
+             aria-label="Наступна сторінка">Далі →</a>
         <?php endif; ?>
       </nav>
     <?php endif; ?>
@@ -412,80 +259,15 @@ include __DIR__ . '/includes/header.php';
   </div>
 </section>
 
-<!-- Дані моделей для JS пошуку -->
-<script>
-window.SHOPCASE_MODELS = <?php
-  $modelsForJs = array_map(fn($item) => [
-    'id'    => (string)$item['id'],
-    'name'  => $item['name'],
-    'brand' => explode(' ', $item['name'])[0],
-    'avail' => count(EndorPhone::getAvailableMaterials($item)),
-  ], $stock);
-  echo json_encode($modelsForJs, JSON_UNESCAPED_UNICODE);
-?>;
-</script>
+<?php
+// Банер онлайн-конструктора чохлів з власним фото
+include __DIR__ . '/views/components/custom-banner.php';
 
-<!-- ========== HOW IT WORKS ========== -->
-<section class="how-it-works" id="how-it-works">
-  <div class="container">
-    <div class="section-header">
-      <h2 class="section-title">Як це працює</h2>
-      <p class="section-subtitle">Три простих кроки до вашого ідеального чохла</p>
-    </div>
-    <div class="steps">
-      <div class="step">
-        <div class="step__num">01</div>
-        <div class="step__icon">🔍</div>
-        <h3 class="step__title">Оберіть чохол</h3>
-        <p class="step__text">Знайдіть модель свого телефону та оберіть тип матеріалу до смаку</p>
-      </div>
-      <div class="step__arrow" aria-hidden="true">→</div>
-      <div class="step">
-        <div class="step__num">02</div>
-        <div class="step__icon">📦</div>
-        <h3 class="step__title">Оформіть замовлення</h3>
-        <p class="step__text">Заповніть форму — ім'я, телефон та відділення Нової Пошти</p>
-      </div>
-      <div class="step__arrow" aria-hidden="true">→</div>
-      <div class="step">
-        <div class="step__num">03</div>
-        <div class="step__icon">🚀</div>
-        <h3 class="step__title">Отримайте швидко</h3>
-        <p class="step__text">Відправляємо протягом 1–3 днів. Доставка по всій Україні</p>
-      </div>
-    </div>
-  </div>
-</section>
+// Як це працює
+include __DIR__ . '/views/components/how-it-works.php';
 
-<!-- ========== ADVANTAGES ========== -->
-<section class="advantages" id="advantages">
-  <div class="container">
-    <div class="section-header">
-      <h2 class="section-title">Чому ми?</h2>
-    </div>
-    <div class="advantages__grid">
-      <div class="advantage-card">
-        <div class="advantage-card__icon">🎨</div>
-        <h3 class="advantage-card__title">Яскравий друк</h3>
-        <p class="advantage-card__text">УФ-друк з насиченими кольорами, стійкий до стирання</p>
-      </div>
-      <div class="advantage-card">
-        <div class="advantage-card__icon">🛡️</div>
-        <h3 class="advantage-card__title">Надійний захист</h3>
-        <p class="advantage-card__text">Матеріали амортизують удари та захищають від подряпин</p>
-      </div>
-      <div class="advantage-card">
-        <div class="advantage-card__icon">📮</div>
-        <h3 class="advantage-card__title">Нова Пошта</h3>
-        <p class="advantage-card__text">Доставка по всій Україні. Оплата при отриманні або онлайн</p>
-      </div>
-      <div class="advantage-card">
-        <div class="advantage-card__icon">⚡</div>
-        <h3 class="advantage-card__title">Швидко</h3>
-        <p class="advantage-card__text">Виробництво та відправка протягом 1–3 робочих днів</p>
-      </div>
-    </div>
-  </div>
-</section>
+// Переваги
+include __DIR__ . '/views/components/advantages.php';
 
-<?php include __DIR__ . '/includes/footer.php'; ?>
+// Підвал та модальні вікна
+include __DIR__ . '/views/layout/footer.php';

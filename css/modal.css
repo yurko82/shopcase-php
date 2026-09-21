@@ -31,7 +31,7 @@
   position: relative;
   background: var(--clr-white);
   border-radius: var(--radius-xl);
-  box-shadow: 0 24px 80px rgba(124, 58, 237, 0.22);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.16);
   width: 100%;
   max-width: 560px;
   max-height: 90vh;
@@ -189,7 +189,7 @@
   background: var(--grad-btn);
   border-color: transparent;
   color: var(--clr-white);
-  box-shadow: 0 4px 14px rgba(255, 78, 205, 0.3);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
 }
 
 .mat-option:disabled {
@@ -319,8 +319,138 @@
 }
 
 /* ══════════════════════════════
+   ENDORPHONE CONSTRUCTOR MODAL
+══════════════════════════════ */
+.modal--constructor {
+  max-width: 1040px;
+  width: 95vw;
+  height: 88vh;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  padding: 0;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
+}
+
+.modal__header--constructor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-bottom: 1.5px solid #E2E8F0;
+  position: relative;
+  z-index: 10;
+}
+
+.constructor-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.constructor-header-icon {
+  font-size: 24px;
+}
+
+.constructor-header-title {
+  font-family: var(--font-heading, 'Unbounded', sans-serif);
+  font-size: 14px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+}
+
+.constructor-header-sub {
+  font-size: 11px;
+  color: #64748B;
+  display: block;
+}
+
+.constructor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.constructor-header-actions .modal__close {
+  position: static;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+.constructor-fullscreen-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  text-decoration: none;
+}
+
+.modal__body--constructor {
+  flex: 1;
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: #F8FAFC;
+  min-height: 480px;
+  display: flex;
+}
+
+.constructor-iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  border: none;
+  flex: 1;
+}
+
+.constructor-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #F8FAFC;
+  z-index: 5;
+  color: #64748B;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.constructor-loader.hidden {
+  display: none !important;
+}
+
+/* ══════════════════════════════
    RESPONSIVE
 ══════════════════════════════ */
+@media (max-width: 768px) {
+  .modal--constructor {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .constructor-header-sub {
+    display: none;
+  }
+
+  .constructor-fullscreen-btn {
+    display: none;
+  }
+
+  .modal-overlay {
+    padding: 0;
+  }
+}
+
 @media (max-width: 600px) {
   .modal {
     max-width: 100%;

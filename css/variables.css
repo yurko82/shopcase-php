@@ -3,34 +3,34 @@
   --font-display: 'Unbounded', sans-serif;
   --font-body:    'Nunito', sans-serif;
 
-  /* ── Brand Palette ── */
-  --clr-pink:        #FF4ECD;
-  --clr-violet:      #7C3AED;
-  --clr-violet-dark: #5B21B6;
-  --clr-cyan:        #06B6D4;
-  --clr-yellow:      #FCD34D;
-  --clr-orange:      #FB923C;
+  /* ── Brand Palette (Vibrant Warm Sunset & Coral) ── */
+  --clr-pink:        #FF5E62; /* Яскравий і соковитий корал */
+  --clr-violet:      #FF8E53; /* Теплий сонячно-кораловий */
+  --clr-violet-dark: #E0484C;
+  --clr-cyan:        #0EA5E9; /* Свіжий бірюзовий */
+  --clr-yellow:      #F59E0B;
+  --clr-orange:      #FF7E47;
 
-  /* ── Gradients ── */
-  --grad-primary:    linear-gradient(135deg, #FF4ECD 0%, #7C3AED 50%, #06B6D4 100%);
-  --grad-hero:       linear-gradient(135deg, #fdf4ff 0%, #ede9fe 50%, #e0f2fe 100%);
-  --grad-card-hover: linear-gradient(135deg, #FF4ECD22 0%, #7C3AED22 100%);
-  --grad-badge:      linear-gradient(90deg, #FF4ECD, #7C3AED);
-  --grad-btn:        linear-gradient(135deg, #FF4ECD, #7C3AED);
-  --grad-btn-hover:  linear-gradient(135deg, #e040b8, #6d28d9);
-  --grad-step:       linear-gradient(135deg, #ede9fe, #fdf4ff);
+  /* ── Gradients (Cheerful & Warm) ── */
+  --grad-primary:    linear-gradient(135deg, #FF5E62 0%, #FF8E53 100%);
+  --grad-hero:       linear-gradient(180deg, #FFF9F8 0%, #F4F4F5 100%);
+  --grad-card-hover: linear-gradient(135deg, rgba(255, 94, 98, 0.05) 0%, rgba(255, 142, 83, 0.08) 100%);
+  --grad-badge:      linear-gradient(135deg, #FF5E62 0%, #FF8E53 100%);
+  --grad-btn:        linear-gradient(135deg, #FF5E62 0%, #FF8E53 100%);
+  --grad-btn-hover:  linear-gradient(135deg, #E0484C 0%, #E6783A 100%);
+  --grad-step:       linear-gradient(180deg, #FFF9F8 0%, #F4F4F5 100%);
 
-  /* ── Neutral ── */
+  /* ── Neutral Backgrounds ── */
   --clr-bg:          #ffffff;
-  --clr-bg-soft:     #fafafa;
-  --clr-bg-section:  #f5f3ff;
+  --clr-bg-soft:     #fff9f8;
+  --clr-bg-section:  #f4f4f5;
   --clr-surface:     #ffffff;
-  --clr-border:      #ede9fe;
-  --clr-border-dark: #c4b5fd;
+  --clr-border:      #e5e7eb;
+  --clr-border-dark: #d1d5db;
 
-  /* ── Text ── */
-  --clr-text:        #1e1b2e;
-  --clr-text-muted:  #6b7280;
+  /* ── Text (High Contrast & Crisp Readability) ── */
+  --clr-text:        #111827; /* Глибокий вугільний для ідеальної читабельності */
+  --clr-text-muted:  #4b5563; /* Чіткий темно-сірий для підзаголовків */
   --clr-text-light:  #9ca3af;
   --clr-white:       #ffffff;
 
@@ -55,12 +55,12 @@
   --radius-xl:   32px;
   --radius-pill: 999px;
 
-  /* ── Shadows ── */
-  --shadow-sm:  0 2px 8px rgba(124, 58, 237, 0.08);
-  --shadow-md:  0 4px 24px rgba(124, 58, 237, 0.12);
-  --shadow-lg:  0 8px 40px rgba(124, 58, 237, 0.18);
-  --shadow-card: 0 2px 16px rgba(124, 58, 237, 0.10);
-  --shadow-card-hover: 0 8px 32px rgba(255, 78, 205, 0.20);
+  /* ── Shadows (Warm & Subtle) ── */
+  --shadow-sm:  0 1px 3px rgba(17, 24, 39, 0.06), 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-md:  0 4px 14px rgba(17, 24, 39, 0.08);
+  --shadow-lg:  0 12px 28px rgba(17, 24, 39, 0.12);
+  --shadow-card: 0 2px 10px rgba(17, 24, 39, 0.05);
+  --shadow-card-hover: 0 12px 30px rgba(255, 94, 98, 0.18);
 
   /* ── Transitions ── */
   --transition-fast:   150ms ease;

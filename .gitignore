@@ -1,0 +1,20 @@
+# Environment secrets
+.env
+
+# Cache and logs
+cache/
+logs/
+data/cache/
+data/logs/
+data/orders.json
+cookies.txt
+export_test.xml
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
